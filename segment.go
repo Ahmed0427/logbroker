@@ -84,7 +84,7 @@ func (s *LogSegment) Append(entry *LogEntry) error {
 
 	if s.sizeSinceLastIndex >= 4096 {
 		indexEntryData := [8]byte{}
-		binary.BigEndian.PutUint32(indexEntryData[:], uint32(entry.Offset-s.baseOffset))
+		binary.BigEndian.PutUint32(indexEntryData[:], uint32(entry.offset-s.baseOffset))
 		binary.BigEndian.PutUint32(indexEntryData[4:], entryPos)
 		if _, err := s.indexFile.Write(indexEntryData[:]); err != nil {
 			return fmt.Errorf("write index entry: %w", err)
@@ -179,10 +179,10 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 			}
 
 			return &LogEntry{
-				Offset:    entryOffset,
-				Timestamp: timestamp,
-				Key:       key,
-				Value:     value,
+				offset:    entryOffset,
+				timestamp: timestamp,
+				key:       key,
+				value:     value,
 			}, nil
 		}
 
