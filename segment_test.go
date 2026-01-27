@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"testing"
 )
@@ -203,21 +204,46 @@ func TestLogSegment_SparseIndexScanning(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "sparse_test")
 	defer os.RemoveAll(dir)
 
-	segment, _ := NewLogSegment(dir, 0, 100000)
+	segment, _ := NewLogSegment(dir, 0, 4*1024*1024)
 	defer segment.logFile.Close()
 
-	largeVal := bytes.Repeat([]byte("a"), 1000)
+	largeVal := bytes.Repeat([]byte("x"), 1000)
 
-	for i := uint64(0); i < 5; i++ {
-		segment.Append(&LogEntry{offset: i, key: []byte("k"), value: largeVal})
+	for i := uint64(0); i < 100; i++ {
+		segment.Append(&LogEntry{
+			offset: i,
+			key:    []byte(fmt.Sprintf("%d", i)),
+			value:  largeVal,
+		})
 	}
 
-	res, err := segment.Read(4)
-	if err != nil {
-		t.Fatalf("Failed to find offset 4 in sparse index: %v", err)
+	for i := uint64(0); i < 100; i += 10 {
+		ent, err := segment.Read(i)
+		if err != nil {
+			t.Fatalf("Failed to find offset %d in sparse index: %v", i, err)
+		}
+		if ent.offset != i {
+			t.Errorf("Expected offset %d, got %d", i, ent.offset)
+		}
+		if !bytes.Equal(ent.value, largeVal) {
+			t.Errorf("Unexpected value")
+		}
 	}
-	if res.offset != 4 {
-		t.Errorf("Expected offset 4, got %d", res.offset)
+
+	for i := 0; i < 100; i += 10 {
+		maxSize := (len(largeVal) + 1) * i
+		ents, err := segment.ReadRange(0, maxSize)
+		if err != nil {
+			t.Fatalf("Failed to read rand from offset 0: %v", err)
+		}
+		if len(ents) != i {
+			t.Fatalf("Expected to read %d entries, got: %d", i+1, len(ents))
+		}
+		for j := 0; j < len(ents); j++ {
+			if string(ents[j].key) != fmt.Sprintf("%d", j) {
+				t.Fatalf("Expected to read %d entries, got: %s", j, string(ents[j].key))
+			}
+		}
 	}
 }
 

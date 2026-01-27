@@ -113,7 +113,7 @@ func (s *LogSegment) lookupOffset(targetOffset uint64) (uint32, error) {
 		return 0, fmt.Errorf("corrupted index file: %w", err)
 	}
 
-	var targetPos int32 = -1
+	var targetPos uint32 = 0
 	l, r := 0, (len(indexData)/8)-1
 
 	for l <= r {
@@ -126,16 +126,12 @@ func (s *LogSegment) lookupOffset(targetOffset uint64) (uint32, error) {
 		if uint64(offset) > targetOffset-s.baseOffset {
 			r = mid - 1
 		} else {
-			targetPos = int32(pos)
+			targetPos = pos
 			l = mid + 1
 		}
 	}
 
-	if targetPos == -1 {
-		return 0, fmt.Errorf("offset not found in index")
-	}
-
-	return uint32(targetPos), nil
+	return targetPos, nil
 }
 
 func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
@@ -192,6 +188,28 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 	}
 
 	return nil, fmt.Errorf("offset %d: entry not found in segment", targetOffset)
+}
+
+func (s *LogSegment) ReadRange(startOffset uint64, maxSize int) ([]*LogEntry, error) {
+	entries := []*LogEntry{}
+	if maxSize == 0 {
+		return entries, nil
+	}
+
+	currentSize := 0
+	for {
+		entry, err := s.Read(startOffset)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+		currentSize += len(entry.key) + len(entry.value)
+		if currentSize >= maxSize {
+			break
+		}
+		startOffset++
+	}
+	return entries, nil
 }
 
 func (s *LogSegment) Seal() error {
