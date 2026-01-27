@@ -19,6 +19,7 @@ type LogSegment struct {
 	logPath            string
 	indexFile          *os.File
 	indexPath          string
+	indexCache         []byte
 	isSealed           bool
 }
 
@@ -45,6 +46,8 @@ func NewLogSegment(dir string, baseOffset uint64, maxSize uint32) (*LogSegment, 
 		return nil, err
 	}
 
+	indexCache, err := os.ReadFile(indexPath)
+
 	return &LogSegment{
 		directory:   dir,
 		baseOffset:  baseOffset,
@@ -54,6 +57,7 @@ func NewLogSegment(dir string, baseOffset uint64, maxSize uint32) (*LogSegment, 
 		logPath:     logPath,
 		indexFile:   indexFile,
 		indexPath:   indexPath,
+		indexCache:  indexCache,
 	}, nil
 }
 
@@ -89,6 +93,7 @@ func (s *LogSegment) Append(entry *LogEntry) error {
 		if _, err := s.indexFile.Write(indexEntryData[:]); err != nil {
 			return fmt.Errorf("write index entry: %w", err)
 		}
+		s.indexCache = append(s.indexCache, indexEntryData[:]...)
 		s.sizeSinceLastIndex = 0
 	}
 
@@ -100,17 +105,14 @@ func (s *LogSegment) lookupOffset(targetOffset uint64) (uint32, error) {
 		return 0, fmt.Errorf("target offset < base offset")
 	}
 
-	indexData, err := os.ReadFile(s.indexPath)
-	if err != nil {
-		return 0, fmt.Errorf("can't read index file: %w", err)
-	}
+	indexData := s.indexCache[:]
 
 	if len(indexData) == 0 {
 		return 0, nil
 	}
 
 	if len(indexData)%8 != 0 {
-		return 0, fmt.Errorf("corrupted index file: %w", err)
+		return 0, fmt.Errorf("corrupted index file")
 	}
 
 	var targetPos uint32 = 0
@@ -149,8 +151,8 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 	}
 
 	for {
-		header := make([]byte, headerSize)
-		_, err := io.ReadFull(s.logFile, header)
+		header := [headerSize]byte{}
+		_, err := io.ReadFull(s.logFile, header[:])
 		if err == io.EOF {
 			break
 		}
