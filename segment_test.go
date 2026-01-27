@@ -119,7 +119,7 @@ func TestLogSegmentPersistence(t *testing.T) {
 	}
 }
 
-func TestLogSegment_SparseIndexScanning(t *testing.T) {
+func TestLogSegmentSparseIndexScanning(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "sparse_test")
 	defer os.RemoveAll(dir)
 

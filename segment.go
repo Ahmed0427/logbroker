@@ -146,18 +146,16 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 		return nil, fmt.Errorf("index lookup: %w", err)
 	}
 
-	if _, err := s.logFile.Seek(int64(entryPos), io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek start: %w", err)
-	}
+	currentPos := int64(entryPos)
+
+	header := make([]byte, headerSize)
 
 	for {
-		header := [headerSize]byte{}
-		_, err := io.ReadFull(s.logFile, header[:])
-		if err == io.EOF {
+		if _, err := s.logFile.ReadAt(header, currentPos); err != nil {
+			if err != io.EOF {
+				return nil, fmt.Errorf("read header at %d: %w", currentPos, err)
+			}
 			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("read header: %w", err)
 		}
 
 		entryOffset := binary.BigEndian.Uint64(header[offsetPos:timestampPos])
@@ -166,15 +164,16 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 		valueLen := binary.BigEndian.Uint32(header[valueLenPos:headerSize])
 
 		if entryOffset == targetOffset {
-			key := make([]byte, keyLen)
-			value := make([]byte, valueLen)
+			keyValue := make([]byte, keyLen+valueLen)
 
-			if _, err := io.ReadFull(s.logFile, key); err != nil {
+			off := currentPos + int64(headerSize)
+
+			if _, err := s.logFile.ReadAt(keyValue, off); err != nil {
 				return nil, fmt.Errorf("read key: %w", err)
 			}
-			if _, err := io.ReadFull(s.logFile, value); err != nil {
-				return nil, fmt.Errorf("read value: %w", err)
-			}
+
+			key := keyValue[:keyLen]
+			value := keyValue[keyLen:]
 
 			return &LogEntry{
 				offset:    entryOffset,
@@ -184,8 +183,10 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 			}, nil
 		}
 
-		if _, err := s.logFile.Seek(int64(keyLen+valueLen), io.SeekCurrent); err != nil {
-			return nil, fmt.Errorf("skip entry: %w", err)
+		currentPos += int64(headerSize + keyLen + valueLen)
+
+		if currentPos >= int64(s.currentSize) {
+			break
 		}
 	}
 
