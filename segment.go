@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 )
 
+const INDEX_INTERVAL = 4096
+
 type LogSegment struct {
 	directory          string
 	baseOffset         uint64
@@ -61,6 +63,18 @@ func NewLogSegment(dir string, baseOffset uint64, maxSize uint32) (*LogSegment, 
 	}, nil
 }
 
+func (s *LogSegment) appendToIndex(offset uint64, pos uint32) error {
+	indexEntryData := [8]byte{}
+	binary.BigEndian.PutUint32(indexEntryData[:], uint32(offset-s.baseOffset))
+	binary.BigEndian.PutUint32(indexEntryData[4:], pos)
+	if _, err := s.indexFile.Write(indexEntryData[:]); err != nil {
+		return fmt.Errorf("write index entry: %w", err)
+	}
+	s.indexCache = append(s.indexCache, indexEntryData[:]...)
+	s.sizeSinceLastIndex = 0
+	return nil
+}
+
 func (s *LogSegment) Append(entry *LogEntry) error {
 	if s.isSealed {
 		return fmt.Errorf("segment sealed: cannot append to %s", s.logFile.Name())
@@ -86,17 +100,9 @@ func (s *LogSegment) Append(entry *LogEntry) error {
 	s.currentSize += uint32(len(entryData))
 	s.sizeSinceLastIndex += uint32(len(entryData))
 
-	if s.sizeSinceLastIndex >= 4096 {
-		indexEntryData := [8]byte{}
-		binary.BigEndian.PutUint32(indexEntryData[:], uint32(entry.offset-s.baseOffset))
-		binary.BigEndian.PutUint32(indexEntryData[4:], entryPos)
-		if _, err := s.indexFile.Write(indexEntryData[:]); err != nil {
-			return fmt.Errorf("write index entry: %w", err)
-		}
-		s.indexCache = append(s.indexCache, indexEntryData[:]...)
-		s.sizeSinceLastIndex = 0
+	if s.sizeSinceLastIndex >= INDEX_INTERVAL {
+		return s.appendToIndex(entry.offset, entryPos)
 	}
-
 	return nil
 }
 
@@ -245,4 +251,46 @@ func (s *LogSegment) Close() error {
 		return errors.Join(errs...)
 	}
 	return nil
+}
+
+func (s *LogSegment) RebuildIndex() (uint64, error) {
+	var err error
+	os.Remove(s.indexPath)
+	s.indexFile, err = os.OpenFile(s.indexPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	if err != nil {
+		return 0, err
+	}
+
+	header := make([]byte, headerSize)
+	var lastOffset uint64
+	var currentPos uint32
+
+	for {
+		if _, err = s.logFile.ReadAt(header, int64(currentPos)); err != nil {
+			if err != io.EOF {
+				return 0, fmt.Errorf("read header at %d: %w", currentPos, err)
+			}
+			break
+		}
+
+		lastOffset = binary.BigEndian.Uint64(header[offsetPos:timestampPos])
+		keyLen := binary.BigEndian.Uint32(header[keyLenPos:valueLenPos])
+		valueLen := binary.BigEndian.Uint32(header[valueLenPos:headerSize])
+
+		entrySize := headerSize + keyLen + valueLen
+
+		s.sizeSinceLastIndex += entrySize
+		if s.sizeSinceLastIndex > INDEX_INTERVAL {
+			if err = s.appendToIndex(lastOffset, currentPos); err != nil {
+				return 0, fmt.Errorf("failed to append to index: %w", err)
+			}
+		}
+
+		currentPos += uint32(entrySize)
+		if currentPos >= s.currentSize {
+			break
+		}
+	}
+
+	return lastOffset, nil
 }

@@ -136,6 +136,11 @@ func TestLogSegmentSparseIndexScanning(t *testing.T) {
 		})
 	}
 
+	_, err := segment.RebuildIndex()
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
 	for i := uint64(0); i < 100; i += 10 {
 		ent, err := segment.Read(i)
 		if err != nil {
@@ -150,6 +155,7 @@ func TestLogSegmentSparseIndexScanning(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i += 10 {
+		// key length = 1
 		maxSize := (len(largeVal) + 1) * i
 		ents, err := segment.ReadRange(0, maxSize)
 		if err != nil {
