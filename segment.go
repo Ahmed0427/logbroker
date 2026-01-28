@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-const INDEX_INTERVAL = 4096
+const indexInterval = 4096
 
 type LogSegment struct {
 	directory          string
@@ -49,6 +49,11 @@ func NewLogSegment(dir string, baseOffset uint64, maxSize uint32) (*LogSegment, 
 	}
 
 	indexCache, err := os.ReadFile(indexPath)
+	if err != nil {
+		logFile.Close()
+		indexFile.Close()
+		return nil, err
+	}
 
 	return &LogSegment{
 		directory:   dir,
@@ -100,7 +105,7 @@ func (s *LogSegment) Append(entry *LogEntry) error {
 	s.currentSize += uint32(len(entryData))
 	s.sizeSinceLastIndex += uint32(len(entryData))
 
-	if s.sizeSinceLastIndex >= INDEX_INTERVAL {
+	if s.sizeSinceLastIndex >= indexInterval {
 		return s.appendToIndex(entry.offset, entryPos)
 	}
 	return nil
@@ -270,8 +275,12 @@ func (s *LogSegment) Close() error {
 }
 
 func (s *LogSegment) RebuildIndex() (uint64, error) {
-	var err error
+	if s.indexFile != nil {
+		s.indexFile.Close()
+	}
 	os.Remove(s.indexPath)
+
+	var err error
 	s.indexFile, err = os.OpenFile(s.indexPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 	if err != nil {
 		return 0, err
@@ -296,7 +305,7 @@ func (s *LogSegment) RebuildIndex() (uint64, error) {
 		entrySize := headerSize + keyLen + valueLen
 
 		s.sizeSinceLastIndex += entrySize
-		if s.sizeSinceLastIndex > INDEX_INTERVAL {
+		if s.sizeSinceLastIndex > indexInterval {
 			if err = s.appendToIndex(lastOffset, currentPos); err != nil {
 				return 0, fmt.Errorf("failed to append to index: %w", err)
 			}
