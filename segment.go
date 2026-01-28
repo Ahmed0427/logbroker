@@ -223,11 +223,27 @@ func (s *LogSegment) ReadRange(startOffset uint64, maxSize int) ([]*LogEntry, er
 
 func (s *LogSegment) Seal() error {
 	s.isSealed = true
-	return s.Close()
+	var errs []error
+	err := s.logFile.Sync()
+	if err != nil {
+		errs = append(errs, fmt.Errorf("syncing log file: %w", err))
+	}
+	err = s.indexFile.Sync()
+	if err != nil {
+		errs = append(errs, fmt.Errorf("syncing index file: %w", err))
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
 }
 
 func (s *LogSegment) Close() error {
 	var errs []error
+	err := s.Seal()
+	if err != nil {
+		errs = append(errs, fmt.Errorf("sealing the segment: %w", err))
+	}
 
 	if s.logFile != nil {
 		if err := s.logFile.Close(); err != nil {
