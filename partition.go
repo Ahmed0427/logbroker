@@ -145,12 +145,13 @@ func (p *LogPartition) ReadRange(startOffset uint64, maxBytes int) ([]*LogEntry,
 	if len(p.segments) == 0 {
 		return nil, fmt.Errorf("partition empty")
 	}
-	if startOffset >= p.nextOffset {
-		return nil, fmt.Errorf("offset >= p.nextOffset")
-	}
 
 	var entries []*LogEntry
 	bytesRead := 0
+
+	if startOffset >= p.nextOffset {
+		return entries, nil
+	}
 
 	segmentIdx := p.findSegmentIndex(startOffset)
 

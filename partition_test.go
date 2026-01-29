@@ -145,8 +145,8 @@ func TestLogPartitionReadRange(t *testing.T) {
 	})
 
 	t.Run("OutOfBoundsStart", func(t *testing.T) {
-		_, err := p.ReadRange(100, 100)
-		if err == nil {
+		entries, err := p.ReadRange(100, 100)
+		if len(entries) > 0 || err != nil {
 			t.Error("Expected error for out-of-bounds startOffset, got nil")
 		}
 	})
