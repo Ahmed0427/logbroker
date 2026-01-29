@@ -96,18 +96,23 @@ func (p *LogPartition) Append(key, value []byte) (uint64, error) {
 
 	activeSegment := p.segments[len(p.segments)-1]
 
-	err := activeSegment.Append(entry)
+	appended, err := activeSegment.Append(entry)
 	if err != nil {
-		activeSegment.Seal()
-		segment, err := NewLogSegment(p.directory, offset, p.segmentSize)
+		return 0, err
+	}
+
+	if !appended {
+		if err = activeSegment.Seal(); err != nil {
+			return 0, err
+		}
+		newSegment, err := NewLogSegment(p.directory, offset, p.segmentSize)
 		if err != nil {
 			return 0, err
 		}
-		p.segments = append(p.segments, segment)
-		activeSegment = p.segments[len(p.segments)-1]
-		err = activeSegment.Append(entry)
-		if err != nil {
-			return 0, err
+
+		p.segments = append(p.segments, newSegment)
+		if appended, err := newSegment.Append(entry); !appended || err != nil {
+			return 0, fmt.Errorf("failed to append to the new segment: %v", err)
 		}
 	}
 
@@ -148,7 +153,10 @@ func (p *LogPartition) Close() error {
 			errs = append(errs, err)
 		}
 	}
-	return errors.Join(errs...)
+	if len(errs) != 0 {
+		return errors.Join(errs...)
+	}
+	return nil
 }
 
 func checkPartitionDirEntry(name string, isDir bool) error {

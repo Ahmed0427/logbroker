@@ -57,12 +57,16 @@ func TestLogPartitionComprehensive(t *testing.T) {
 
 	t.Run("RollingAndRecovery", func(t *testing.T) {
 		dir := t.TempDir()
-		// Set size small enough so two appends trigger a roll
-		segmentSize := uint32(50)
-		p1, _ := NewLogPartition(1, dir, segmentSize)
 
-		// Fill and Roll
-		for i := 0; i < 5; i++ {
+		// Set size small enough so two appends trigger a roll
+		// be carefule cuz the size isn't only key and value length but also some metadata
+		segmentSize := uint32(60)
+		p1, err := NewLogPartition(1, dir, segmentSize)
+		if err != nil {
+			t.Errorf("%v", err)
+		}
+
+		for i := 0; i < 20; i++ {
 			p1.Append([]byte("key"), make([]byte, 30))
 		}
 
