@@ -95,3 +95,59 @@ func TestLogPartitionComprehensive(t *testing.T) {
 		}
 	})
 }
+
+func TestLogPartitionReadRange(t *testing.T) {
+	dir := t.TempDir()
+	// Set segment size small to force multiple files
+	// Each entry (key+val) is ~20 bytes, so 50 bytes rolls every ~2.5 entries
+	p, _ := NewLogPartition(1, dir, 50)
+	defer p.Close()
+
+	// 1. Setup: Write 10 entries across roughly 4 segments
+	for i := 0; i < 10; i++ {
+		_, err := p.Append([]byte{byte(i)}, []byte("data")) // ~5 bytes + overhead
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("ReadAcrossBoundaries", func(t *testing.T) {
+		// Start at offset 2, ask for enough bytes to get 5 entries
+		// This should start in Segment 1 and end in Segment 2 or 3
+		entries, err := p.ReadRange(2, 1000)
+		if err != nil {
+			t.Fatalf("ReadRange failed: %v", err)
+		}
+
+		if len(entries) != 8 { // Offsets 2 through 9
+			t.Errorf("Expected 8 entries, got %d", len(entries))
+		}
+
+		if entries[0].offset != 2 || entries[len(entries)-1].offset != 9 {
+			t.Errorf("Range bounds mismatch: start %d, end %d",
+				entries[0].offset, entries[len(entries)-1].offset)
+		}
+	})
+
+	t.Run("RespectMaxBytes", func(t *testing.T) {
+		// Ask for offset 0, but only 10 bytes of data
+		// Since each entry's value "data" is 4 bytes and key is 1,
+		// it should return exactly 2 entries.
+		maxBytes := 10
+		entries, err := p.ReadRange(0, maxBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(entries) > 2 {
+			t.Errorf("ReadRange exceeded maxBytes: got %d entries", len(entries))
+		}
+	})
+
+	t.Run("OutOfBoundsStart", func(t *testing.T) {
+		_, err := p.ReadRange(100, 100)
+		if err == nil {
+			t.Error("Expected error for out-of-bounds startOffset, got nil")
+		}
+	})
+}

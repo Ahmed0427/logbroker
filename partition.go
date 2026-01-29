@@ -131,6 +131,41 @@ func (p *LogPartition) Read(offset uint64) (*LogEntry, error) {
 	return p.segments[i].Read(offset)
 }
 
+func (p *LogPartition) ReadRange(startOffset uint64, maxBytes int) ([]*LogEntry, error) {
+	if len(p.segments) == 0 {
+		return nil, fmt.Errorf("partition empty")
+	}
+	if startOffset >= p.nextOffset {
+		return nil, fmt.Errorf("offset >= p.nextOffset")
+	}
+
+	var entries []*LogEntry
+	bytesRead := 0
+
+	segmentIdx := p.findSegmentIndex(startOffset)
+
+	for i := segmentIdx; i < len(p.segments); i++ {
+		segment := p.segments[i]
+		segmentEntries, err := segment.ReadRange(startOffset, maxBytes-bytesRead)
+		if err != nil {
+			return entries, err
+		}
+
+		entries = append(entries, segmentEntries...)
+		startOffset += uint64(len(segmentEntries))
+
+		for _, entry := range segmentEntries {
+			bytesRead += len(entry.key) + len(entry.value)
+		}
+
+		if bytesRead >= maxBytes {
+			break
+		}
+	}
+
+	return entries, nil
+}
+
 func (p *LogPartition) findSegmentIndex(offset uint64) int {
 	result := 0
 	left, right := 0, len(p.segments)-1
@@ -153,6 +188,7 @@ func (p *LogPartition) Close() error {
 			errs = append(errs, err)
 		}
 	}
+	p.segments = nil
 	if len(errs) != 0 {
 		return errors.Join(errs...)
 	}
