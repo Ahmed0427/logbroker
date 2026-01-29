@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const indexInterval = 4096
@@ -159,7 +160,8 @@ func (s *LogSegment) lookupOffset(targetOffset uint64) (uint32, error) {
 
 func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 	if targetOffset < s.baseOffset {
-		return nil, fmt.Errorf("target offset < base offset")
+		return nil, fmt.Errorf("target offset: %d < base offset: %d",
+			targetOffset, s.baseOffset)
 	}
 
 	entryPos, err := s.lookupOffset(targetOffset)
@@ -224,6 +226,9 @@ func (s *LogSegment) ReadRange(startOffset uint64, maxSize int) ([]*LogEntry, er
 	for {
 		entry, err := s.Read(startOffset)
 		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				break
+			}
 			return nil, err
 		}
 		entries = append(entries, entry)
@@ -237,7 +242,6 @@ func (s *LogSegment) ReadRange(startOffset uint64, maxSize int) ([]*LogEntry, er
 }
 
 func (s *LogSegment) Seal() error {
-	s.isSealed = true
 	var errs []error
 	err := s.logFile.Sync()
 	if err != nil {
@@ -250,6 +254,7 @@ func (s *LogSegment) Seal() error {
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+	s.isSealed = true
 	return nil
 }
 
