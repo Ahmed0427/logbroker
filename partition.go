@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,10 +16,10 @@ type LogPartition struct {
 	segmentSize uint32
 	segments    []*LogSegment
 	nextOffset  uint64
+	lock        sync.RWMutex
 }
 
 func NewLogPartition(id uint32, dir string, segmentSize uint32) (*LogPartition, error) {
-
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create partition dir: %w", err)
 	}
@@ -78,6 +79,9 @@ func NewLogPartition(id uint32, dir string, segmentSize uint32) (*LogPartition, 
 }
 
 func (p *LogPartition) Append(key, value []byte) (uint64, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	offset := p.nextOffset
 	entry := &LogEntry{
 		offset:    offset,
@@ -121,6 +125,9 @@ func (p *LogPartition) Append(key, value []byte) (uint64, error) {
 }
 
 func (p *LogPartition) Read(offset uint64) (*LogEntry, error) {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
 	if len(p.segments) == 0 {
 		return nil, fmt.Errorf("partition empty")
 	}
@@ -132,6 +139,9 @@ func (p *LogPartition) Read(offset uint64) (*LogEntry, error) {
 }
 
 func (p *LogPartition) ReadRange(startOffset uint64, maxBytes int) ([]*LogEntry, error) {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
 	if len(p.segments) == 0 {
 		return nil, fmt.Errorf("partition empty")
 	}
@@ -181,7 +191,16 @@ func (p *LogPartition) findSegmentIndex(offset uint64) int {
 	return result
 }
 
+func (p *LogPartition) GetLogEndOffset() uint64 {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.nextOffset
+}
+
 func (p *LogPartition) Close() error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	var errs []error
 	for _, seg := range p.segments {
 		if err := seg.Close(); err != nil {
