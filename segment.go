@@ -80,35 +80,45 @@ func (s *LogSegment) appendToIndex(offset uint64, pos uint32) error {
 	return nil
 }
 
-func (s *LogSegment) Append(entry *LogEntry) error {
+func (s *LogSegment) Append(entry *LogEntry) (bool, error) {
 	if s.isSealed {
-		return fmt.Errorf("segment sealed: cannot append to %s", s.logFile.Name())
+		return false, nil
 	}
 
 	entryData, err := entry.Encode()
 	if err != nil {
-		return fmt.Errorf("encode entry: %w", err)
+		return false, fmt.Errorf("encode entry: %w", err)
 	}
 
 	if s.currentSize+uint32(len(entryData)) > s.maxSize {
-		return fmt.Errorf("segment full: entry size %d exceeds remaining %d bytes",
-			len(entryData), s.maxSize-s.currentSize)
+		return false, nil
 	}
 
 	entryPos := s.currentSize
 	_ = entryPos
 
 	if _, err := s.logFile.Write(entryData); err != nil {
-		return fmt.Errorf("write entry: %w", err)
+		return false, fmt.Errorf("write entry: %w", err)
 	}
 
 	s.currentSize += uint32(len(entryData))
 	s.sizeSinceLastIndex += uint32(len(entryData))
 
 	if s.sizeSinceLastIndex >= indexInterval {
-		return s.appendToIndex(entry.offset, entryPos)
+		if err = s.appendToIndex(entry.offset, entryPos); err != nil {
+			// rollback file
+			if trErr := s.logFile.Truncate(int64(entryPos)); trErr != nil {
+				return false, fmt.Errorf("index failed (%v) and truncate failed (%v)", err, trErr)
+			}
+
+			// rollback memory state
+			s.currentSize = entryPos
+			s.sizeSinceLastIndex -= uint32(len(entryData))
+
+			return false, fmt.Errorf("append to index: %w", err)
+		}
 	}
-	return nil
+	return true, nil
 }
 
 func (s *LogSegment) lookupOffset(targetOffset uint64) (uint32, error) {

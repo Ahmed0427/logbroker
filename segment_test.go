@@ -30,7 +30,7 @@ func TestLogSegment(t *testing.T) {
 		}
 
 		for _, e := range testEntries {
-			if err := segment.Append(e); err != nil {
+			if _, err := segment.Append(e); err != nil {
 				t.Fatalf("failed to append entry %d: %v", e.offset, err)
 			}
 		}
@@ -70,8 +70,8 @@ func TestLogSegment(t *testing.T) {
 		entry := &LogEntry{offset: 300, key: []byte("key"),
 			value: []byte("too long value for small segment")}
 
-		err := smallSegment.Append(entry)
-		if err == nil {
+		appended, err := smallSegment.Append(entry)
+		if appended && err != nil {
 			t.Error("expected error due to maxSize limit, but append succeeded")
 		}
 	})
@@ -81,8 +81,8 @@ func TestLogSegment(t *testing.T) {
 		segment.isSealed = true
 
 		entry := &LogEntry{offset: 400, key: []byte("k"), value: []byte("v")}
-		err := segment.Append(entry)
-		if err == nil || err.Error() == "" {
+		appended, err := segment.Append(entry)
+		if appended && err != nil {
 			t.Error("expected error appending to sealed segment")
 		}
 	})
@@ -196,7 +196,7 @@ func BenchmarkLogSegmentAppend(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		entry.offset = uint64(i)
-		err := segment.Append(entry)
+		_, err := segment.Append(entry)
 		if err != nil {
 			b.Fatal(err)
 		}
