@@ -68,16 +68,16 @@ func TestLogStorageBasic(t *testing.T) {
 		expectedKey := []byte(fmt.Sprintf("key-%d", i))
 		expectedValue := []byte(fmt.Sprintf("value-%d", i))
 
-		if entry.offset != uint64(i) {
-			t.Errorf("Entry %d: offset mismatch: got %d, want %d", i, entry.offset, i)
+		if entry.Offset != uint64(i) {
+			t.Errorf("Entry %d: offset mismatch: got %d, want %d", i, entry.Offset, i)
 		}
-		if !bytes.Equal(entry.key, expectedKey) {
-			t.Errorf("Entry %d: key mismatch: got %s, want %s", i, entry.key, expectedKey)
+		if !bytes.Equal(entry.Key, expectedKey) {
+			t.Errorf("Entry %d: key mismatch: got %s, want %s", i, entry.Key, expectedKey)
 		}
-		if !bytes.Equal(entry.value, expectedValue) {
-			t.Errorf("Entry %d: value mismatch: got %s, want %s", i, entry.value, expectedValue)
+		if !bytes.Equal(entry.Value, expectedValue) {
+			t.Errorf("Entry %d: value mismatch: got %s, want %s", i, entry.Value, expectedValue)
 		}
-		if entry.timestamp == 0 {
+		if entry.Timestamp == 0 {
 			t.Errorf("Entry %d: timestamp should not be zero", i)
 		}
 	}
@@ -97,8 +97,8 @@ func TestLogStorageBasic(t *testing.T) {
 	if len(entries) != 5 { // offsets 5-9
 		t.Errorf("Expected 5 entries from offset 5, got %d", len(entries))
 	}
-	if len(entries) > 0 && entries[0].offset != 5 {
-		t.Errorf("First entry from offset 5 should be offset 5, got %d", entries[0].offset)
+	if len(entries) > 0 && entries[0].Offset != 5 {
+		t.Errorf("First entry from offset 5 should be offset 5, got %d", entries[0].Offset)
 	}
 }
 
@@ -145,13 +145,13 @@ func TestLogStorageMultipleTopicsPartitions(t *testing.T) {
 		}
 
 		entry := entries[0]
-		if !bytes.Equal(entry.key, test.key) {
+		if !bytes.Equal(entry.Key, test.key) {
 			t.Errorf("Key mismatch for %s-%d: got %s, want %s",
-				test.topic, test.partition, entry.key, test.key)
+				test.topic, test.partition, entry.Key, test.key)
 		}
-		if !bytes.Equal(entry.value, test.value) {
+		if !bytes.Equal(entry.Value, test.value) {
 			t.Errorf("Value mismatch for %s-%d: got %s, want %s",
-				test.topic, test.partition, entry.value, test.value)
+				test.topic, test.partition, entry.Value, test.value)
 		}
 	}
 }
@@ -192,9 +192,9 @@ func TestLogStorageSegmentRollover(t *testing.T) {
 
 	// Verify offsets are sequential
 	for i := 0; i < len(entries)-1; i++ {
-		if entries[i+1].offset != entries[i].offset+1 {
+		if entries[i+1].Offset != entries[i].Offset+1 {
 			t.Errorf("Non-sequential offsets: %d followed by %d",
-				entries[i].offset, entries[i+1].offset)
+				entries[i].Offset, entries[i+1].Offset)
 		}
 	}
 }
@@ -362,14 +362,14 @@ func TestLogStoragePersistence(t *testing.T) {
 		expectedKey := []byte(fmt.Sprintf("key-%d", i))
 		expectedValue := []byte(fmt.Sprintf("value-%d", i))
 
-		if entry.offset != uint64(i) {
-			t.Errorf("Entry %d: offset mismatch: got %d, want %d", i, entry.offset, i)
+		if entry.Offset != uint64(i) {
+			t.Errorf("Entry %d: offset mismatch: got %d, want %d", i, entry.Offset, i)
 		}
-		if !bytes.Equal(entry.key, expectedKey) {
-			t.Errorf("Entry %d: key mismatch: got %s, want %s", i, entry.key, expectedKey)
+		if !bytes.Equal(entry.Key, expectedKey) {
+			t.Errorf("Entry %d: key mismatch: got %s, want %s", i, entry.Key, expectedKey)
 		}
-		if !bytes.Equal(entry.value, expectedValue) {
-			t.Errorf("Entry %d: value mismatch: got %s, want %s", i, entry.value, expectedValue)
+		if !bytes.Equal(entry.Value, expectedValue) {
+			t.Errorf("Entry %d: value mismatch: got %s, want %s", i, entry.Value, expectedValue)
 		}
 	}
 
@@ -404,11 +404,11 @@ func TestLogStorageEdgeCases(t *testing.T) {
 	}
 
 	entry := entries[0]
-	if len(entry.key) != 0 {
-		t.Errorf("Expected empty key, got %v", entry.key)
+	if len(entry.Key) != 0 {
+		t.Errorf("Expected empty key, got %v", entry.Key)
 	}
-	if len(entry.value) != 0 {
-		t.Errorf("Expected empty value, got %v", entry.value)
+	if len(entry.Value) != 0 {
+		t.Errorf("Expected empty value, got %v", entry.Value)
 	}
 
 	// Test nil key
@@ -501,8 +501,8 @@ func TestLogStorageFileCorruption(t *testing.T) {
 
 	// If we got entries, verify they're valid
 	for _, entry := range entries {
-		if entry.offset >= 3 { // Our corruption might affect offset 2+
-			t.Logf("Got entry from corrupted region: offset %d", entry.offset)
+		if entry.Offset >= 3 { // Our corruption might affect offset 2+
+			t.Logf("Got entry from corrupted region: offset %d", entry.Offset)
 		}
 	}
 

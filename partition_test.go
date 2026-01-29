@@ -123,9 +123,9 @@ func TestLogPartitionReadRange(t *testing.T) {
 			t.Errorf("Expected 8 entries, got %d", len(entries))
 		}
 
-		if entries[0].offset != 2 || entries[len(entries)-1].offset != 9 {
+		if entries[0].Offset != 2 || entries[len(entries)-1].Offset != 9 {
 			t.Errorf("Range bounds mismatch: start %d, end %d",
-				entries[0].offset, entries[len(entries)-1].offset)
+				entries[0].Offset, entries[len(entries)-1].Offset)
 		}
 	})
 

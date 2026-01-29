@@ -106,7 +106,7 @@ func (s *LogSegment) Append(entry *LogEntry) (bool, error) {
 	s.sizeSinceLastIndex += uint32(len(entryData))
 
 	if s.sizeSinceLastIndex >= indexInterval {
-		if err = s.appendToIndex(entry.offset, entryPos); err != nil {
+		if err = s.appendToIndex(entry.Offset, entryPos); err != nil {
 			// rollback file
 			if trErr := s.logFile.Truncate(int64(entryPos)); trErr != nil {
 				return false, fmt.Errorf("index failed (%v) and truncate failed (%v)", err, trErr)
@@ -199,10 +199,10 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 			value := keyValue[keyLen:]
 
 			return &LogEntry{
-				offset:    entryOffset,
-				timestamp: timestamp,
-				key:       key,
-				value:     value,
+				Offset:    entryOffset,
+				Timestamp: timestamp,
+				Key:       key,
+				Value:     value,
 			}, nil
 		}
 
@@ -232,7 +232,7 @@ func (s *LogSegment) ReadRange(startOffset uint64, maxSize int) ([]*LogEntry, er
 			return nil, err
 		}
 		entries = append(entries, entry)
-		currentSize += len(entry.key) + len(entry.value)
+		currentSize += len(entry.Key) + len(entry.Value)
 		if currentSize >= maxSize {
 			break
 		}

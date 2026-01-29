@@ -24,14 +24,14 @@ func TestLogSegment(t *testing.T) {
 		defer segment.logFile.Close()
 
 		testEntries := []*LogEntry{
-			{offset: 100, timestamp: 1000, key: []byte("color"), value: []byte("red")},
-			{offset: 101, timestamp: 1001, key: []byte("size"), value: []byte("large")},
-			{offset: 102, timestamp: 1002, key: []byte("mode"), value: []byte("silent")},
+			{Offset: 100, Timestamp: 1000, Key: []byte("color"), Value: []byte("red")},
+			{Offset: 101, Timestamp: 1001, Key: []byte("size"), Value: []byte("large")},
+			{Offset: 102, Timestamp: 1002, Key: []byte("mode"), Value: []byte("silent")},
 		}
 
 		for _, e := range testEntries {
 			if _, err := segment.Append(e); err != nil {
-				t.Fatalf("failed to append entry %d: %v", e.offset, err)
+				t.Fatalf("failed to append entry %d: %v", e.Offset, err)
 			}
 		}
 
@@ -50,9 +50,9 @@ func TestLogSegment(t *testing.T) {
 				t.Errorf("Read(%d) failed: %v", tc.offset, err)
 				continue
 			}
-			if !bytes.Equal(entry.value, []byte(tc.expected)) {
+			if !bytes.Equal(entry.Value, []byte(tc.expected)) {
 				t.Errorf("Read(%d): expected value %s, got %s",
-					tc.offset, tc.expected, string(entry.value))
+					tc.offset, tc.expected, string(entry.Value))
 			}
 		}
 	})
@@ -67,8 +67,8 @@ func TestLogSegment(t *testing.T) {
 
 	t.Run("Respect Max Size", func(t *testing.T) {
 		smallSegment, _ := NewLogSegment(dir, 300, 30)
-		entry := &LogEntry{offset: 300, key: []byte("key"),
-			value: []byte("too long value for small segment")}
+		entry := &LogEntry{Offset: 300, Key: []byte("key"),
+			Value: []byte("too long value for small segment")}
 
 		appended, err := smallSegment.Append(entry)
 		if appended && err != nil {
@@ -80,7 +80,7 @@ func TestLogSegment(t *testing.T) {
 		segment, _ := NewLogSegment(dir, 400, maxSize)
 		segment.isSealed = true
 
-		entry := &LogEntry{offset: 400, key: []byte("k"), value: []byte("v")}
+		entry := &LogEntry{Offset: 400, Key: []byte("k"), Value: []byte("v")}
 		appended, err := segment.Append(entry)
 		if appended && err != nil {
 			t.Error("expected error appending to sealed segment")
@@ -93,7 +93,7 @@ func TestLogSegmentPersistence(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	const maxSize = 1024 * 1024
-	entry := &LogEntry{offset: 100, key: []byte("key1"), value: []byte("val1")}
+	entry := &LogEntry{Offset: 100, Key: []byte("key1"), Value: []byte("val1")}
 
 	seg1, _ := NewLogSegment(dir, 0, maxSize)
 	seg1.Append(entry)
@@ -114,7 +114,7 @@ func TestLogSegmentPersistence(t *testing.T) {
 	}
 
 	readBack, err := seg2.Read(100)
-	if err != nil || string(readBack.value) != "val1" {
+	if err != nil || string(readBack.Value) != "val1" {
 		t.Errorf("failed to read back persistent data: %v", err)
 	}
 }
@@ -130,9 +130,9 @@ func TestLogSegmentSparseIndexScanning(t *testing.T) {
 
 	for i := uint64(0); i < 100; i++ {
 		segment.Append(&LogEntry{
-			offset: i,
-			key:    []byte(fmt.Sprintf("%d", i)),
-			value:  largeVal,
+			Offset: i,
+			Key:    []byte(fmt.Sprintf("%d", i)),
+			Value:  largeVal,
 		})
 	}
 
@@ -146,10 +146,10 @@ func TestLogSegmentSparseIndexScanning(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to find offset %d in sparse index: %v", i, err)
 		}
-		if ent.offset != i {
-			t.Errorf("Expected offset %d, got %d", i, ent.offset)
+		if ent.Offset != i {
+			t.Errorf("Expected offset %d, got %d", i, ent.Offset)
 		}
-		if !bytes.Equal(ent.value, largeVal) {
+		if !bytes.Equal(ent.Value, largeVal) {
 			t.Errorf("Unexpected value")
 		}
 	}
@@ -165,8 +165,8 @@ func TestLogSegmentSparseIndexScanning(t *testing.T) {
 			t.Fatalf("Expected to read %d entries, got: %d", i+1, len(ents))
 		}
 		for j := 0; j < len(ents); j++ {
-			if string(ents[j].key) != fmt.Sprintf("%d", j) {
-				t.Fatalf("Expected to read %d entries, got: %s", j, string(ents[j].key))
+			if string(ents[j].Key) != fmt.Sprintf("%d", j) {
+				t.Fatalf("Expected to read %d entries, got: %s", j, string(ents[j].Key))
 			}
 		}
 	}
@@ -191,11 +191,11 @@ func BenchmarkLogSegmentAppend(b *testing.B) {
 	defer os.RemoveAll(dir)
 
 	segment, _ := NewLogSegment(dir, 0, 1024*1024*1024) // 1GB
-	entry := &LogEntry{key: []byte("test-key"), value: []byte("test-value")}
+	entry := &LogEntry{Key: []byte("test-key"), Value: []byte("test-value")}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		entry.offset = uint64(i)
+		entry.Offset = uint64(i)
 		_, err := segment.Append(entry)
 		if err != nil {
 			b.Fatal(err)
@@ -211,7 +211,7 @@ func BenchmarkLogSegmentRead(b *testing.B) {
 
 	// Pre-fill
 	for i := 0; i < 1000; i++ {
-		segment.Append(&LogEntry{offset: uint64(i), key: []byte("k"), value: []byte("v")})
+		segment.Append(&LogEntry{Offset: uint64(i), Key: []byte("k"), Value: []byte("v")})
 	}
 
 	b.ResetTimer()

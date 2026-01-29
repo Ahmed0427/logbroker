@@ -16,10 +16,10 @@ const (
 )
 
 type LogEntry struct {
-	offset    uint64
-	timestamp uint64
-	key       []byte
-	value     []byte
+	Offset    uint64
+	Timestamp uint64
+	Key       []byte
+	Value     []byte
 }
 
 func (e *LogEntry) Encode() ([]byte, error) {
@@ -27,21 +27,21 @@ func (e *LogEntry) Encode() ([]byte, error) {
 
 	order := binary.BigEndian
 
-	if err := binary.Write(buf, order, e.offset); err != nil {
+	if err := binary.Write(buf, order, e.Offset); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(buf, order, e.timestamp); err != nil {
+	if err := binary.Write(buf, order, e.Timestamp); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(buf, order, uint32(len(e.key))); err != nil {
+	if err := binary.Write(buf, order, uint32(len(e.Key))); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(buf, order, uint32(len(e.value))); err != nil {
+	if err := binary.Write(buf, order, uint32(len(e.Value))); err != nil {
 		return nil, err
 	}
 
-	buf.Write(e.key)
-	buf.Write(e.value)
+	buf.Write(e.Key)
+	buf.Write(e.Value)
 
 	return buf.Bytes(), nil
 }
@@ -52,10 +52,10 @@ func DecodeLogEntry(data []byte) (*LogEntry, error) {
 	order := binary.BigEndian
 
 	// Read fixed-size fields
-	if err := binary.Read(reader, order, &e.offset); err != nil {
+	if err := binary.Read(reader, order, &e.Offset); err != nil {
 		return nil, err
 	}
-	if err := binary.Read(reader, order, &e.timestamp); err != nil {
+	if err := binary.Read(reader, order, &e.Timestamp); err != nil {
 		return nil, err
 	}
 
@@ -67,13 +67,13 @@ func DecodeLogEntry(data []byte) (*LogEntry, error) {
 		return nil, err
 	}
 
-	e.key = make([]byte, keyLen)
-	if _, err := io.ReadFull(reader, e.key); err != nil {
+	e.Key = make([]byte, keyLen)
+	if _, err := io.ReadFull(reader, e.Key); err != nil {
 		return nil, fmt.Errorf("failed to read key: %w", err)
 	}
 
-	e.value = make([]byte, valLen)
-	if _, err := io.ReadFull(reader, e.value); err != nil {
+	e.Value = make([]byte, valLen)
+	if _, err := io.ReadFull(reader, e.Value); err != nil {
 		return nil, fmt.Errorf("failed to read value: %w", err)
 	}
 

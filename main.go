@@ -27,7 +27,7 @@ func main() {
 
 	for _, entry := range entries {
 		fmt.Printf("Offset: %d, Key: %s, Value: %s\n",
-			entry.offset, string(entry.key), string(entry.value))
+			entry.Offset, string(entry.Key), string(entry.Value))
 	}
 
 	hwm, err := storage.GetHighWatermark("test-topic", 0)

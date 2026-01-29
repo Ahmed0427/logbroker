@@ -6,7 +6,7 @@ import (
 )
 
 func TestLogEntry(t *testing.T) {
-	validEnt := &LogEntry{key: []byte("Hi"), value: []byte("There")}
+	validEnt := &LogEntry{Key: []byte("Hi"), Value: []byte("There")}
 	validData, _ := validEnt.Encode()
 
 	tests := []struct {
@@ -18,20 +18,20 @@ func TestLogEntry(t *testing.T) {
 		{
 			name: "Success: Standard entry",
 			input: &LogEntry{
-				offset:    12345,
-				timestamp: 1672531200,
-				key:       []byte("user_1"),
-				value:     []byte("active"),
+				Offset:    12345,
+				Timestamp: 1672531200,
+				Key:       []byte("user_1"),
+				Value:     []byte("active"),
 			},
 			wantErr: false,
 		},
 		{
 			name: "Success: Empty key and value",
 			input: &LogEntry{
-				offset:    0,
-				timestamp: 0,
-				key:       []byte(""),
-				value:     []byte(""),
+				Offset:    0,
+				Timestamp: 0,
+				Key:       []byte(""),
+				Value:     []byte(""),
 			},
 			wantErr: false,
 		},

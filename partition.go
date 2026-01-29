@@ -84,10 +84,10 @@ func (p *LogPartition) Append(key, value []byte) (uint64, error) {
 
 	offset := p.nextOffset
 	entry := &LogEntry{
-		offset:    offset,
-		timestamp: uint64(time.Now().UnixNano()),
-		key:       key,
-		value:     value,
+		Offset:    offset,
+		Timestamp: uint64(time.Now().UnixNano()),
+		Key:       key,
+		Value:     value,
 	}
 
 	if len(p.segments) == 0 {
@@ -166,7 +166,7 @@ func (p *LogPartition) ReadRange(startOffset uint64, maxBytes int) ([]*LogEntry,
 		startOffset += uint64(len(segmentEntries))
 
 		for _, entry := range segmentEntries {
-			bytesRead += len(entry.key) + len(entry.value)
+			bytesRead += len(entry.Key) + len(entry.Value)
 		}
 
 		if bytesRead >= maxBytes {
