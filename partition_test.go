@@ -29,7 +29,7 @@ func TestCheckPartitionDirEntry(t *testing.T) {
 
 func TestLogPartitionComprehensive(t *testing.T) {
 	t.Run("EmptyReadReturnsError", func(t *testing.T) {
-		p, _ := NewLogPartition(1, t.TempDir(), 1024)
+		p, _ := NewLogPartition(1, t.TempDir(), 1024, 10)
 		defer p.Close()
 
 		_, err := p.Read(0)
@@ -39,7 +39,7 @@ func TestLogPartitionComprehensive(t *testing.T) {
 	})
 
 	t.Run("BoundaryOffsets", func(t *testing.T) {
-		p, _ := NewLogPartition(1, t.TempDir(), 1024)
+		p, _ := NewLogPartition(1, t.TempDir(), 1024, 10)
 		defer p.Close()
 
 		p.Append([]byte("k1"), []byte("v1")) // Offset 0
@@ -61,7 +61,7 @@ func TestLogPartitionComprehensive(t *testing.T) {
 		// Set size small enough so two appends trigger a roll
 		// be carefule cuz the size isn't only key and value length but also some metadata
 		segmentSize := uint32(60)
-		p1, err := NewLogPartition(1, dir, segmentSize)
+		p1, err := NewLogPartition(1, dir, segmentSize, 40)
 		if err != nil {
 			t.Errorf("%v", err)
 		}
@@ -78,7 +78,7 @@ func TestLogPartitionComprehensive(t *testing.T) {
 		p1.Close()
 
 		// Recovery Check
-		p2, err := NewLogPartition(1, dir, segmentSize)
+		p2, err := NewLogPartition(1, dir, segmentSize, 10)
 		if err != nil {
 			t.Fatalf("recovery failed: %v", err)
 		}
@@ -94,13 +94,34 @@ func TestLogPartitionComprehensive(t *testing.T) {
 			t.Errorf("could not read offset 0 after recovery: %v", err)
 		}
 	})
+
+	t.Run("RollingAndRecovery", func(t *testing.T) {
+		dir := t.TempDir()
+
+		// Set size small enough so two appends trigger a roll
+		// be carefule cuz the size isn't only key and value length but also some metadata
+		segmentSize := uint32(60)
+		p, err := NewLogPartition(1, dir, segmentSize, 10)
+		if err != nil {
+			t.Errorf("%v", err)
+		}
+
+		for i := 0; i < 30; i++ {
+			p.Append([]byte("key"), make([]byte, 30))
+		}
+
+		if len(p.segments) != int(p.maxNumberOfSegments) {
+			t.Errorf("expected %d segment, but have %d segments",
+				p.maxNumberOfSegments, len(p.segments))
+		}
+	})
 }
 
 func TestLogPartitionReadRange(t *testing.T) {
 	dir := t.TempDir()
 	// Set segment size small to force multiple files
 	// Each entry (key+val) is ~20 bytes, so 50 bytes rolls every ~2.5 entries
-	p, _ := NewLogPartition(1, dir, 50)
+	p, _ := NewLogPartition(1, dir, 50, 20)
 	defer p.Close()
 
 	// 1. Setup: Write 10 entries across roughly 4 segments

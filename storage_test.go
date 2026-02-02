@@ -14,7 +14,7 @@ func setupTestStorage(t *testing.T) (*LogStorage, string) {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
 
-	storage := NewLogStorage(tmpDir, 1024*1024) // 1MB segments
+	storage := NewLogStorage(tmpDir, 1024*1024, 100) // 1MB segments
 	return storage, tmpDir
 }
 
@@ -158,7 +158,7 @@ func TestLogStorageMultipleTopicsPartitions(t *testing.T) {
 
 func TestLogStorageSegmentRollover(t *testing.T) {
 	// Use very small segment size to force rollover
-	storage := NewLogStorage(t.TempDir(), 128)
+	storage := NewLogStorage(t.TempDir(), 128, 200)
 	defer storage.Close()
 
 	// Create messages that will force segment rollover
@@ -319,7 +319,7 @@ func TestLogStoragePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// First storage instance
-	storage1 := NewLogStorage(tmpDir, 1024)
+	storage1 := NewLogStorage(tmpDir, 1024, 200)
 
 	// Produce some messages
 	for i := 0; i < 10; i++ {
@@ -335,7 +335,7 @@ func TestLogStoragePersistence(t *testing.T) {
 	}
 
 	// Create second storage instance with same directory
-	storage2 := NewLogStorage(tmpDir, 1024)
+	storage2 := NewLogStorage(tmpDir, 1024, 200)
 	defer storage2.Close()
 
 	// Verify data was persisted
@@ -449,7 +449,7 @@ func TestLogStorageFileCorruption(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// First create valid storage with some data
-	storage := NewLogStorage(tmpDir, 1024)
+	storage := NewLogStorage(tmpDir, 1024, 200)
 
 	// Produce valid messages
 	for i := 0; i < 3; i++ {
@@ -489,7 +489,7 @@ func TestLogStorageFileCorruption(t *testing.T) {
 	file.Close()
 
 	// Try to reload storage - it should handle corruption gracefully
-	storage2 := NewLogStorage(tmpDir, 1024)
+	storage2 := NewLogStorage(tmpDir, 1024, 200)
 	defer storage2.Close()
 
 	// Should still be able to read uncorrupted messages

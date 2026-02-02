@@ -7,17 +7,19 @@ import (
 )
 
 type LogStorage struct {
-	BaseDirectory string
-	SegmentSize   uint32
-	partitions    map[string]*LogPartition
-	lock          sync.RWMutex
+	BaseDirectory       string
+	SegmentSize         uint32
+	MaxNumberOfSegments uint32
+	partitions          map[string]*LogPartition
+	lock                sync.RWMutex
 }
 
-func NewLogStorage(baseDirectory string, segmentSize uint32) *LogStorage {
+func NewLogStorage(baseDirectory string, segmentSize, maxNumberOfSegments uint32) *LogStorage {
 	return &LogStorage{
-		BaseDirectory: baseDirectory,
-		SegmentSize:   segmentSize,
-		partitions:    make(map[string]*LogPartition),
+		BaseDirectory:       baseDirectory,
+		SegmentSize:         segmentSize,
+		MaxNumberOfSegments: maxNumberOfSegments,
+		partitions:          make(map[string]*LogPartition),
 	}
 }
 
@@ -37,6 +39,7 @@ func (s *LogStorage) GetPartition(topic string, partitionID int) (*LogPartition,
 		uint32(partitionID),
 		partitionDir,
 		s.SegmentSize,
+		s.MaxNumberOfSegments,
 	)
 	if err != nil {
 		return nil, err

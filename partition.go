@@ -11,15 +11,16 @@ import (
 )
 
 type LogPartition struct {
-	directory   string
-	partitionID uint32
-	segmentSize uint32
-	segments    []*LogSegment
-	nextOffset  uint64
-	lock        sync.RWMutex
+	directory           string
+	partitionID         uint32
+	segmentSize         uint32
+	segments            []*LogSegment
+	nextOffset          uint64
+	maxNumberOfSegments uint32
+	lock                sync.RWMutex
 }
 
-func NewLogPartition(id uint32, dir string, segmentSize uint32) (*LogPartition, error) {
+func NewLogPartition(id uint32, dir string, segmentSize, maxNumberOfSegments uint32) (*LogPartition, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create partition dir: %w", err)
 	}
@@ -70,11 +71,12 @@ func NewLogPartition(id uint32, dir string, segmentSize uint32) (*LogPartition, 
 	}
 
 	return &LogPartition{
-		partitionID: id,
-		directory:   dir,
-		segmentSize: segmentSize,
-		segments:    segments,
-		nextOffset:  nextOffset,
+		partitionID:         id,
+		directory:           dir,
+		segmentSize:         segmentSize,
+		segments:            segments,
+		nextOffset:          nextOffset,
+		maxNumberOfSegments: maxNumberOfSegments,
 	}, nil
 }
 
@@ -118,6 +120,11 @@ func (p *LogPartition) Append(key, value []byte) (uint64, error) {
 		if appended, err := newSegment.Append(entry); !appended || err != nil {
 			return 0, fmt.Errorf("failed to append to the new segment: %v", err)
 		}
+	}
+
+	if len(p.segments) > int(p.maxNumberOfSegments) {
+		p.segments[0].Remove()
+		p.segments = p.segments[1:]
 	}
 
 	p.nextOffset++
