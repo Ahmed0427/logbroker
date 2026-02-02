@@ -70,12 +70,12 @@ func (s *LogStorage) Consume(topic string, partitionID int,
 }
 
 func (s *LogStorage) GetHighWatermark(topic string, partition int) (uint64, error) {
-	lp, err := s.GetPartition(topic, partition)
+	p, err := s.GetPartition(topic, partition)
 	if err != nil {
 		return 0, err
 	}
 
-	return lp.GetLogEndOffset(), nil
+	return p.GetLogEndOffset(), nil
 }
 
 func (s *LogStorage) Close() error {
