@@ -223,3 +223,29 @@ func BenchmarkLogSegmentRead(b *testing.B) {
 		}
 	}
 }
+
+func TestLogSegmentRemove(t *testing.T) {
+	dir := t.TempDir()
+
+	s, err := NewLogSegment(dir, 0, 1024)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	// 2. Execution: Remove the segment
+	err = s.Remove()
+	if err != nil {
+		t.Fatalf("Remove() failed: %v", err)
+	}
+
+	// 3. Verification: Check if files still exist
+	_, err = os.Stat(s.logPath)
+	if !os.IsNotExist(err) {
+		t.Errorf("expected log file to be deleted, but it still exists")
+	}
+
+	_, err = os.Stat(s.indexPath)
+	if !os.IsNotExist(err) {
+		t.Errorf("expected index file to be deleted, but it still exists")
+	}
+}
