@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"fmt"
@@ -14,7 +14,9 @@ type LogStorage struct {
 	lock                sync.RWMutex
 }
 
-func NewLogStorage(baseDirectory string, segmentSize, maxNumberOfSegments uint32) *LogStorage {
+func NewLogStorage(baseDirectory string, segmentSize,
+	maxNumberOfSegments uint32) *LogStorage {
+
 	return &LogStorage{
 		BaseDirectory:       baseDirectory,
 		SegmentSize:         segmentSize,

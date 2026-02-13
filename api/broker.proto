@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package broker;
+
+option go_package = "./pb";
+
+// Service Definition
+
+service BrokerService {
+  rpc Produce(ProduceRequest) returns (ProduceResponse);
+  rpc Consume(ConsumeRequest) returns (stream ConsumeResponse);
+  rpc CommitOffset(CommitOffsetRequest) returns (CommitOffsetResponse);
+  rpc FetchCommittedOffset(FetchCommittedOffsetRequest) returns (FetchCommittedOffsetResponse);
+  rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
+  rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
+}
+
+// Common Types
+
+message Header {
+  string key = 1;
+  bytes value = 2;
+}
+
+message Record {
+  bytes key = 1;
+  bytes value = 2;
+  int64 timestamp_ms = 3;
+  repeated Header headers = 4;
+}
+
+message LogEntry {
+  uint64 offset = 1;
+  bytes key = 2;
+  bytes value = 3;
+  int64 timestamp = 4;
+  repeated Header headers = 5;
+}
+
+// Produce API
+
+message ProduceRequest {
+  string topic = 1;
+  int32 partition = 2;
+  repeated Record records = 3;
+  Acks acks = 4;
+}
+
+message RecordMetadata {
+  uint64 offset = 1;
+  int32 partition = 2;
+  int64 timestamp = 3;
+}
+
+message ProduceResponse {
+  repeated RecordMetadata metadata = 1;
+  BrokerError error = 2;
+}
+
+// Consume API (Streaming)
+
+message ConsumeRequest {
+  string topic = 1;
+  int32 partition = 2;
+
+  // Starting offset
+  uint64 offset = 3;
+
+  // Optional consumer group
+  string consumer_group = 4;
+
+  // Max bytes per response batch
+  uint32 max_bytes = 5;
+}
+
+message ConsumeResponse {
+  repeated LogEntry entries = 1;
+}
+
+// Offset Management
+
+message CommitOffsetRequest {
+  string topic = 1;
+  int32 partition = 2;
+  string consumer_group = 3;
+  uint64 offset = 4;
+}
+
+message CommitOffsetResponse {
+  BrokerError error = 1;
+}
+
+message FetchCommittedOffsetRequest {
+  string topic = 1;
+  int32 partition = 2;
+  string consumer_group = 3;
+}
+
+message FetchCommittedOffsetResponse {
+  uint64 offset = 1;
+  BrokerError error = 2;
+}
+
+// Topic Administration
+
+message CreateTopicRequest {
+  string name = 1;
+  int32 num_partitions = 2;
+  int64 retention_ms = 3;
+}
+
+message CreateTopicResponse {
+  BrokerError error = 1;
+}
+
+message TopicMetadata {
+  string name = 1;
+  int32 partitions = 2;
+  int64 retention_ms = 3;
+}
+
+message ListTopicsRequest {}
+
+message ListTopicsResponse {
+  repeated TopicMetadata topics = 1;
+}
+
+// Enums and helpers
+
+message BrokerError {
+  ErrorCode code = 1;
+  string message = 2;
+}
+
+
+enum Acks {
+  ACKS_NONE = 0;     // fire-and-forget
+  ACKS_LEADER = 1;   // fsync before ack
+}
+
+enum ErrorCode {
+  NONE = 0;
+  UNKNOWN_TOPIC = 1;
+  UNKNOWN_PARTITION = 2;
+  OFFSET_OUT_OF_RANGE = 3;
+  INVALID_REQUEST = 4;
+  INTERNAL_ERROR = 5;
+}
