@@ -216,13 +216,13 @@ func (s *LogSegment) Read(targetOffset uint64) (*LogEntry, error) {
 	return nil, fmt.Errorf("offset %d: entry not found in segment", targetOffset)
 }
 
-func (s *LogSegment) ReadRange(startOffset uint64, maxSize int) ([]*LogEntry, error) {
+func (s *LogSegment) ReadRange(startOffset uint64, maxSize uint32) ([]*LogEntry, error) {
 	entries := []*LogEntry{}
 	if maxSize == 0 {
 		return entries, nil
 	}
 
-	currentSize := 0
+	var currentSize uint32
 	for {
 		entry, err := s.Read(startOffset)
 		if err != nil {
@@ -232,7 +232,7 @@ func (s *LogSegment) ReadRange(startOffset uint64, maxSize int) ([]*LogEntry, er
 			return nil, err
 		}
 		entries = append(entries, entry)
-		currentSize += len(entry.Key) + len(entry.Value)
+		currentSize += uint32(len(entry.Key) + len(entry.Value))
 		if currentSize >= maxSize {
 			break
 		}

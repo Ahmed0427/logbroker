@@ -8,7 +8,7 @@ option go_package = "./pb";
 
 service BrokerService {
   rpc Produce(ProduceRequest) returns (ProduceResponse);
-  rpc Consume(ConsumeRequest) returns (stream ConsumeResponse);
+  rpc Consume(ConsumeRequest) returns (ConsumeResponse);
   rpc CommitOffset(CommitOffsetRequest) returns (CommitOffsetResponse);
   rpc FetchCommittedOffset(FetchCommittedOffsetRequest) returns (FetchCommittedOffsetResponse);
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
@@ -17,43 +17,29 @@ service BrokerService {
 
 // Common Types
 
-message Header {
-  string key = 1;
-  bytes value = 2;
-}
-
 message Record {
   bytes key = 1;
   bytes value = 2;
-  int64 timestamp_ms = 3;
-  repeated Header headers = 4;
 }
 
 message LogEntry {
   uint64 offset = 1;
+  uint64 timestamp = 4;
   bytes key = 2;
   bytes value = 3;
-  int64 timestamp = 4;
-  repeated Header headers = 5;
 }
 
 // Produce API
 
 message ProduceRequest {
   string topic = 1;
-  int32 partition = 2;
+  uint32 partition = 2;
   repeated Record records = 3;
   Acks acks = 4;
 }
 
-message RecordMetadata {
-  uint64 offset = 1;
-  int32 partition = 2;
-  int64 timestamp = 3;
-}
-
 message ProduceResponse {
-  repeated RecordMetadata metadata = 1;
+  repeated uint64 offsets = 1;
   BrokerError error = 2;
 }
 
@@ -61,7 +47,7 @@ message ProduceResponse {
 
 message ConsumeRequest {
   string topic = 1;
-  int32 partition = 2;
+  uint32 partition = 2;
 
   // Starting offset
   uint64 offset = 3;
@@ -81,7 +67,7 @@ message ConsumeResponse {
 
 message CommitOffsetRequest {
   string topic = 1;
-  int32 partition = 2;
+  uint32 partition = 2;
   string consumer_group = 3;
   uint64 offset = 4;
 }
@@ -92,7 +78,7 @@ message CommitOffsetResponse {
 
 message FetchCommittedOffsetRequest {
   string topic = 1;
-  int32 partition = 2;
+  uint32 partition = 2;
   string consumer_group = 3;
 }
 

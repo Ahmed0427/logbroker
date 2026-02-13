@@ -145,7 +145,7 @@ func (p *LogPartition) Read(offset uint64) (*LogEntry, error) {
 	return p.segments[i].Read(offset)
 }
 
-func (p *LogPartition) ReadRange(startOffset uint64, maxBytes int) ([]*LogEntry, error) {
+func (p *LogPartition) ReadRange(startOffset uint64, maxBytes uint32) ([]*LogEntry, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
@@ -154,7 +154,7 @@ func (p *LogPartition) ReadRange(startOffset uint64, maxBytes int) ([]*LogEntry,
 	}
 
 	var entries []*LogEntry
-	bytesRead := 0
+	var bytesRead uint32
 
 	if startOffset >= p.nextOffset {
 		return entries, nil
@@ -173,7 +173,7 @@ func (p *LogPartition) ReadRange(startOffset uint64, maxBytes int) ([]*LogEntry,
 		startOffset += uint64(len(segmentEntries))
 
 		for _, entry := range segmentEntries {
-			bytesRead += len(entry.Key) + len(entry.Value)
+			bytesRead += uint32(len(entry.Key) + len(entry.Value))
 		}
 
 		if bytesRead >= maxBytes {

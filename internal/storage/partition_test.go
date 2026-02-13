@@ -154,7 +154,7 @@ func TestLogPartitionReadRange(t *testing.T) {
 		// Ask for offset 0, but only 10 bytes of data
 		// Since each entry's value "data" is 4 bytes and key is 1,
 		// it should return exactly 2 entries.
-		maxBytes := 10
+		var maxBytes uint32 = 10
 		entries, err := p.ReadRange(0, maxBytes)
 		if err != nil {
 			t.Fatal(err)

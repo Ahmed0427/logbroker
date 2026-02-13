@@ -108,7 +108,7 @@ func TestLogStorageMultipleTopicsPartitions(t *testing.T) {
 
 	type produceTest struct {
 		topic     string
-		partition int
+		partition uint32
 		key       []byte
 		value     []byte
 	}

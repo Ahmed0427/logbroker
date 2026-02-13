@@ -156,7 +156,7 @@ func TestLogSegmentSparseIndexScanning(t *testing.T) {
 
 	for i := 0; i < 100; i += 10 {
 		// key length = 1
-		maxSize := (len(largeVal) + 1) * i
+		maxSize := uint32((len(largeVal) + 1) * i)
 		ents, err := segment.ReadRange(0, maxSize)
 		if err != nil {
 			t.Fatalf("Failed to read rand from offset 0: %v", err)

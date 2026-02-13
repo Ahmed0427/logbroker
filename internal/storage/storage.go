@@ -25,7 +25,7 @@ func NewLogStorage(baseDirectory string, segmentSize,
 	}
 }
 
-func (s *LogStorage) GetPartition(topic string, partitionID int) (*LogPartition, error) {
+func (s *LogStorage) GetPartition(topic string, partitionID uint32) (*LogPartition, error) {
 	key := fmt.Sprintf("%s-%d", topic, partitionID)
 
 	s.lock.Lock()
@@ -51,7 +51,7 @@ func (s *LogStorage) GetPartition(topic string, partitionID int) (*LogPartition,
 	return p, nil
 }
 
-func (s *LogStorage) Produce(topic string, partitionID int,
+func (s *LogStorage) Produce(topic string, partitionID uint32,
 	key, value []byte) (uint64, error) {
 
 	p, err := s.GetPartition(topic, partitionID)
@@ -63,8 +63,8 @@ func (s *LogStorage) Produce(topic string, partitionID int,
 	return offset, err
 }
 
-func (s *LogStorage) Consume(topic string, partitionID int,
-	offset uint64, maxBytes int) ([]*LogEntry, error) {
+func (s *LogStorage) Consume(topic string, partitionID uint32,
+	offset uint64, maxBytes uint32) ([]*LogEntry, error) {
 
 	p, err := s.GetPartition(topic, partitionID)
 	if err != nil {
@@ -74,7 +74,7 @@ func (s *LogStorage) Consume(topic string, partitionID int,
 	return p.ReadRange(offset, maxBytes)
 }
 
-func (s *LogStorage) GetHighWatermark(topic string, partition int) (uint64, error) {
+func (s *LogStorage) GetHighWatermark(topic string, partition uint32) (uint64, error) {
 	p, err := s.GetPartition(topic, partition)
 	if err != nil {
 		return 0, err
