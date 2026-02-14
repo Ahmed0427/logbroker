@@ -1,7 +1,6 @@
 # LogBroker
 
-A minimal distributed log broker written in Go using gRPC.  
-Supports partitioned topics, streaming consumption, and persistent storage.
+Durable, replayable, log-based message broker written in Go with gRPC.
 
 ## Goals
 
