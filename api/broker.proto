@@ -8,9 +8,7 @@ option go_package = "./pb";
 
 service BrokerService {
   rpc Produce(ProduceRequest) returns (ProduceResponse);
-  rpc Consume(ConsumeRequest) returns (ConsumeResponse);
-  rpc CommitOffset(CommitOffsetRequest) returns (CommitOffsetResponse);
-  rpc FetchCommittedOffset(FetchCommittedOffsetRequest) returns (FetchCommittedOffsetResponse);
+  rpc Consume(ConsumeRequest) returns (stream LogEntry);
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
   rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
 }
@@ -40,7 +38,6 @@ message ProduceRequest {
 
 message ProduceResponse {
   repeated uint64 offsets = 1;
-  BrokerError error = 2;
 }
 
 // Consume API (Streaming)
@@ -59,50 +56,18 @@ message ConsumeRequest {
   uint32 max_bytes = 5;
 }
 
-message ConsumeResponse {
-  repeated LogEntry entries = 1;
-}
-
-// Offset Management
-
-message CommitOffsetRequest {
-  string topic = 1;
-  uint32 partition = 2;
-  string consumer_group = 3;
-  uint64 offset = 4;
-}
-
-message CommitOffsetResponse {
-  BrokerError error = 1;
-}
-
-message FetchCommittedOffsetRequest {
-  string topic = 1;
-  uint32 partition = 2;
-  string consumer_group = 3;
-}
-
-message FetchCommittedOffsetResponse {
-  uint64 offset = 1;
-  BrokerError error = 2;
-}
-
 // Topic Administration
 
 message CreateTopicRequest {
   string name = 1;
-  int32 num_partitions = 2;
-  int64 retention_ms = 3;
+  uint32 num_partitions = 2;
 }
 
-message CreateTopicResponse {
-  BrokerError error = 1;
-}
+message CreateTopicResponse {}
 
 message TopicMetadata {
   string name = 1;
-  int32 partitions = 2;
-  int64 retention_ms = 3;
+  repeated uint32 partitions = 2;
 }
 
 message ListTopicsRequest {}
@@ -111,24 +76,7 @@ message ListTopicsResponse {
   repeated TopicMetadata topics = 1;
 }
 
-// Enums and helpers
-
-message BrokerError {
-  ErrorCode code = 1;
-  string message = 2;
-}
-
-
 enum Acks {
   ACKS_NONE = 0;     // fire-and-forget
   ACKS_LEADER = 1;   // fsync before ack
-}
-
-enum ErrorCode {
-  NONE = 0;
-  UNKNOWN_TOPIC = 1;
-  UNKNOWN_PARTITION = 2;
-  OFFSET_OUT_OF_RANGE = 3;
-  INVALID_REQUEST = 4;
-  INTERNAL_ERROR = 5;
 }
