@@ -149,11 +149,11 @@ func (p *LogPartition) ReadRange(startOffset uint64, maxBytes uint32) ([]*LogEnt
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
+	var entries []*LogEntry
 	if len(p.segments) == 0 {
-		return nil, fmt.Errorf("partition empty")
+		return entries, nil
 	}
 
-	var entries []*LogEntry
 	var bytesRead uint32
 
 	if startOffset >= p.nextOffset {
@@ -218,6 +218,16 @@ func (p *LogPartition) Close() error {
 	p.segments = nil
 	if len(errs) != 0 {
 		return errors.Join(errs...)
+	}
+	return nil
+}
+
+func (p *LogPartition) Flush() error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	activeSegment := p.segments[len(p.segments)-1]
+	if activeSegment != nil {
+		return activeSegment.Flush()
 	}
 	return nil
 }

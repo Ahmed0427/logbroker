@@ -2,9 +2,18 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 )
+
+type TopicMetadata struct {
+	Name       string
+	Partitions []uint32
+}
 
 type LogStorage struct {
 	BaseDirectory       string
@@ -14,15 +23,66 @@ type LogStorage struct {
 	lock                sync.RWMutex
 }
 
-func NewLogStorage(baseDirectory string, segmentSize,
-	maxNumberOfSegments uint32) *LogStorage {
+func NewLogStorage(
+	baseDirectory string,
+	segmentSize uint32,
+	maxNumberOfSegments uint32,
+) (*LogStorage, error) {
+
+	if err := os.MkdirAll(baseDirectory, 0o755); err != nil {
+		return nil, fmt.Errorf("mkdir base dir: %w", err)
+	}
+
+	entries, err := os.ReadDir(baseDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("read base dir: %w", err)
+	}
+
+	partitions := make(map[string]*LogPartition)
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+
+		idx := strings.LastIndex(name, "-")
+		if idx == -1 {
+			return nil, fmt.Errorf("bad partition dir %q", name)
+		}
+
+		topic := name[:idx]
+		partStr := name[idx+1:]
+		if topic == "" {
+			return nil, fmt.Errorf("bad partition dir %q", name)
+		}
+
+		id, err := strconv.ParseUint(partStr, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("bad partition id %q", name)
+		}
+
+		fullPath := filepath.Join(baseDirectory, name)
+
+		partitions[name], err = NewLogPartition(
+			uint32(id),
+			fullPath,
+			segmentSize,
+			maxNumberOfSegments,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &LogStorage{
 		BaseDirectory:       baseDirectory,
 		SegmentSize:         segmentSize,
 		MaxNumberOfSegments: maxNumberOfSegments,
-		partitions:          make(map[string]*LogPartition),
-	}
+		partitions:          partitions,
+	}, nil
 }
 
 func (s *LogStorage) GetPartition(topic string, partitionID uint32) (*LogPartition, error) {
@@ -38,7 +98,7 @@ func (s *LogStorage) GetPartition(topic string, partitionID uint32) (*LogPartiti
 	partitionDir := filepath.Join(s.BaseDirectory, key)
 
 	p, err := NewLogPartition(
-		uint32(partitionID),
+		partitionID,
 		partitionDir,
 		s.SegmentSize,
 		s.MaxNumberOfSegments,
@@ -81,6 +141,45 @@ func (s *LogStorage) GetHighWatermark(topic string, partition uint32) (uint64, e
 	}
 
 	return p.GetLogEndOffset(), nil
+}
+
+func (s *LogStorage) StorageMetadata() []*TopicMetadata {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	topicMap := make(map[string][]uint32)
+
+	for key := range s.partitions {
+		// key format: "<topic>-<partitionID>"
+		idx := strings.LastIndex(key, "-")
+		if idx == -1 {
+			panic(fmt.Sprintf("invalid partition key format %q", key))
+		}
+
+		topic := key[:idx]
+		partitionID := key[idx+1:]
+
+		id, err := strconv.Atoi(partitionID)
+		if err != nil {
+			panic(fmt.Sprintf("invalid partition ID in key %q: %v", key, err))
+		}
+
+		topicMap[topic] = append(topicMap[topic], uint32(id))
+	}
+
+	metadata := make([]*TopicMetadata, 0, len(topicMap))
+
+	for topic, partitions := range topicMap {
+		sort.Slice(partitions, func(i, j int) bool {
+			return partitions[i] < partitions[j]
+		})
+		metadata = append(metadata, &TopicMetadata{
+			Name:       topic,
+			Partitions: partitions,
+		})
+	}
+
+	return metadata
 }
 
 func (s *LogStorage) Close() error {

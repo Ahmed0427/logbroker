@@ -287,7 +287,7 @@ func (s *LogSegment) RebuildIndex() (uint64, error) {
 	return lastOffset, nil
 }
 
-func (s *LogSegment) Seal() error {
+func (s *LogSegment) Flush() error {
 	var errs []error
 	err := s.logFile.Sync()
 	if err != nil {
@@ -300,6 +300,11 @@ func (s *LogSegment) Seal() error {
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+	return nil
+}
+
+func (s *LogSegment) Seal() error {
+	s.Flush()
 	s.isSealed = true
 	return nil
 }

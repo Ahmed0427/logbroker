@@ -14,7 +14,7 @@ func setupTestStorage(t *testing.T) (*LogStorage, string) {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
 
-	storage := NewLogStorage(tmpDir, 1024*1024, 100) // 1MB segments
+	storage, _ := NewLogStorage(tmpDir, 1024*1024, 100) // 1MB segments
 	return storage, tmpDir
 }
 
@@ -158,7 +158,10 @@ func TestLogStorageMultipleTopicsPartitions(t *testing.T) {
 
 func TestLogStorageSegmentRollover(t *testing.T) {
 	// Use very small segment size to force rollover
-	storage := NewLogStorage(t.TempDir(), 128, 200)
+	storage, err := NewLogStorage(t.TempDir(), 128, 200)
+	if err != nil {
+		t.Fatalf("NewLogStorage: %v", err)
+	}
 	defer storage.Close()
 
 	// Create messages that will force segment rollover
@@ -174,7 +177,7 @@ func TestLogStorageSegmentRollover(t *testing.T) {
 	}
 
 	// Should have created multiple segments
-	_, err := storage.GetPartition("test", 0)
+	_, err = storage.GetPartition("test", 0)
 	if err != nil {
 		t.Fatalf("Failed to get partition: %v", err)
 	}
@@ -319,7 +322,10 @@ func TestLogStoragePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// First storage instance
-	storage1 := NewLogStorage(tmpDir, 1024, 200)
+	storage1, err := NewLogStorage(tmpDir, 1024, 200)
+	if err != nil {
+		t.Fatalf("NewLogStorage: %v", err)
+	}
 
 	// Produce some messages
 	for i := 0; i < 10; i++ {
@@ -335,7 +341,10 @@ func TestLogStoragePersistence(t *testing.T) {
 	}
 
 	// Create second storage instance with same directory
-	storage2 := NewLogStorage(tmpDir, 1024, 200)
+	storage2, err := NewLogStorage(tmpDir, 1024, 200)
+	if err != nil {
+		t.Fatalf("NewLogStorage: %v", err)
+	}
 	defer storage2.Close()
 
 	// Verify data was persisted
@@ -449,7 +458,10 @@ func TestLogStorageFileCorruption(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// First create valid storage with some data
-	storage := NewLogStorage(tmpDir, 1024, 200)
+	storage, err := NewLogStorage(tmpDir, 1024, 200)
+	if err != nil {
+		t.Fatalf("NewLogStorage: %v", err)
+	}
 
 	// Produce valid messages
 	for i := 0; i < 3; i++ {
@@ -489,7 +501,10 @@ func TestLogStorageFileCorruption(t *testing.T) {
 	file.Close()
 
 	// Try to reload storage - it should handle corruption gracefully
-	storage2 := NewLogStorage(tmpDir, 1024, 200)
+	storage2, err := NewLogStorage(tmpDir, 1024, 200)
+	if err != nil {
+		t.Fatalf("NewLogStorage: %v", err)
+	}
 	defer storage2.Close()
 
 	// Should still be able to read uncorrupted messages
@@ -544,5 +559,62 @@ func TestLogStorageCloseBehavior(t *testing.T) {
 	_, err := storage.Produce("test", 0, []byte("key"), []byte("value"))
 	if err == nil {
 		t.Error("Expected error when using closed storage, got nil")
+	}
+}
+
+func TestStorageMetadata(t *testing.T) {
+	baseDir := t.TempDir()
+
+	storage, err := NewLogStorage(baseDir, 1024, 10)
+	if err != nil {
+		t.Fatalf("NewLogStorage: %v", err)
+	}
+
+	_, err = storage.Produce("orders", 0, []byte("k1"), []byte("v1"))
+	if err != nil {
+		t.Fatalf("produce failed: %v", err)
+	}
+
+	_, err = storage.Produce("orders", 1, []byte("k2"), []byte("v2"))
+	if err != nil {
+		t.Fatalf("produce failed: %v", err)
+	}
+
+	_, err = storage.Produce("payments", 0, []byte("k3"), []byte("v3"))
+	if err != nil {
+		t.Fatalf("produce failed: %v", err)
+	}
+
+	metadata := storage.StorageMetadata()
+
+	fmt.Printf("%+v\n", metadata)
+
+	// Convert to map for easier assertions
+	result := make(map[string][]uint32)
+	for _, topic := range metadata {
+		result[topic.Name] = topic.Partitions
+	}
+
+	// Validate topics exist
+	if len(result) != 2 {
+		t.Fatalf("expected 2 topics, got %d", len(result))
+	}
+
+	// Validate orders partitions
+	ordersPartitions, ok := result["orders"]
+	if !ok {
+		t.Fatalf("orders topic not found")
+	}
+	if len(ordersPartitions) != 2 {
+		t.Fatalf("expected 2 partitions for orders, got %d", len(ordersPartitions))
+	}
+
+	// Validate payments partitions
+	paymentsPartitions, ok := result["payments"]
+	if !ok {
+		t.Fatalf("payments topic not found")
+	}
+	if len(paymentsPartitions) != 1 || paymentsPartitions[0] != 0 {
+		t.Fatalf("unexpected payments partitions: %v", paymentsPartitions)
 	}
 }
