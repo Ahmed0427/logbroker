@@ -101,10 +101,77 @@ message TopicMetadata {
 ./scripts/generate.sh
 ```
 
-### Start broker
+### Start the Broker
+
+From the project root:
+
+```bash
+go run ./cmd/broker -dir /tmp/logbrokerbase
+```
+
+The broker listens on:
+
+```
+localhost:50051
+```
+
+### Using the CLI Client
+
+All commands follow:
+
+```bash
+go run ./cmd/client [global flags] <command> [command flags]
+```
+
+Global flags:
+
+- `-server` (default: localhost:50051)
+- `-timeout` (default: 5s)
+
+### 1. Create a Topic
+
+```bash
+go run ./cmd/client create -topic test -partitions 1
+```
+
+### 2. Produce Messages
+
+```bash
+go run ./cmd/client produce -topic test -partition 0
+```
+
+Type messages interactively:
+
+```
+> hello
+> world
+```
+
+### 3. Consume Messages
+
+```bash
+go run ./cmd/client consume -topic test -partition 0 -offset 0
+```
+
+### Typical Flow
+
+Terminal 1:
 
 ```bash
 go run ./cmd/broker
+```
+
+Terminal 2:
+
+```bash
+go run ./cmd/client create -topic test -partitions 1
+go run ./cmd/client consume -topic test -partition 0 -offset 0
+```
+
+Terminal 3:
+
+```bash
+go run ./cmd/client produce -topic test -partition 0
 ```
 
 ## Testing
