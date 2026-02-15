@@ -49,9 +49,6 @@ message ConsumeRequest {
   // Starting offset
   uint64 offset = 3;
 
-  // Optional consumer group
-  string consumer_group = 4;
-
   // Max bytes per response batch
   uint32 max_bytes = 5;
 }
